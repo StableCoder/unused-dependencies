@@ -1,4 +1,4 @@
-# [Unused Dependency Files](unused_dependencies.sh)
+# Unused Dependency Search
 
 This script allows for the use of C/C++ dependnecy file information (generated with GCC/Clang with the `-MD` option), and to determine which files in the target directories weren't used during compilation.
 
