@@ -19,4 +19,4 @@ This script allows for the use of C/C++ dependnecy file information (generated w
 > Example: To only check h/hpp files, in the directory /usr/include, with
 >          dependency data from /home/build
 >
->  unused_dependencies.sh -f \"\.h$\" -f \"\.hpp$\" -s /home/build -t /usr/include
+>  unused_dependencies.sh -f "\\.h$" -f "\.hpp$" -s /home/build -t /usr/include
