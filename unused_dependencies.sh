@@ -22,6 +22,7 @@ RED='\033[0;31m'
 CYAN='\033[0;36m'
 NO_COLOUR='\033[0m'
 
+# Prints out usage/help information to the shell
 usage() {
     echo "Usage: unused_dependencies.sh [OPTION]"
     echo
@@ -47,6 +48,9 @@ usage() {
     exit 0
 }
 
+# Recusrively goes back through the directory path to find the given file
+# $1 : The directory to start recurring down from
+# $2 : The file/path to try to find
 find_file() {
     CUR_DIR=$1
     FILE_PATH=$2
@@ -205,6 +209,7 @@ for TARGET_DIR in $TARGET_PATHS; do
             continue
         fi
 
+        # If we can't find this file in the variable, then it isn't used
         if ! grep -w -- $ABS_PATH <<<$USED_HEADERS &>/dev/null; then
             printf "$FILE\n"
             if [[ $FILE_EXPORT -eq 1 ]]; then
