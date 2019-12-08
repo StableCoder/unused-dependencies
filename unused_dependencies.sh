@@ -35,7 +35,7 @@ usage() {
     echo " -h, --help      Displays this help blurb"
     echo
     echo "Multiple of each option can be applied to use more filters or directories."
-    echo 
+    echo
     echo "Example: To only check h/hpp files, in the directory /usr/include, with"
     echo "         dependency data from /home/build"
     echo
@@ -79,7 +79,7 @@ done
 
 # Check inputs
 if [ "$DEPENDENCY_PATHS" = "" ]; then
-printf " ${RED}>>$NO_COLOUR Error: No source directories for .d files defined!\n"
+    printf " ${RED}>>$NO_COLOUR Error: No source directories for .d files defined!\n"
     exit 0
 elif [ "$TARGET_PATHS" = "" ]; then
     printf " ${RED}>>$NO_COLOUR Error: No target filter paths defined!\n"
@@ -124,15 +124,21 @@ for DEP_DIR in $DEPENDENCY_PATHS; do
             fi
 
             # If it's not in the USED_HEADERS list, add it
-            if ! grep -w -- $ABS_PATH <<<$USED_HEADERS &>/dev/null; then
-                if [[ $VERBOSE -eq 1 ]]; then
-                    printf "  ${CYAN}Added$NO_COLOUR: $ABS_PATH\n"
-                fi
-                USED_HEADERS="$USED_HEADERS $ABS_PATH"
-            fi
+            USED_HEADERS="$ABS_PATH $USED_HEADERS"
         done
     done
 done
+
+# Remove duplicates
+USED_HEADERS=$(awk 'BEGIN{RS=ORS=" "}!a[$0]++' <<<$USED_HEADERS)
+
+# If Verbose, print out the used dependencies
+if [[ $VERBOSE -eq 1 ]]; then
+    printf "${YELLOW}Found dependencies$NO_COLOUR:\n"
+    for ITEM in $USED_HEADERS; do
+        echo $ITEM
+    done
+fi
 
 # Now, using the set of 'used' headers, go through all the headers in the same root search path and
 # determine the set that exist but aren't used.
@@ -144,7 +150,7 @@ for TARGET_DIR in $TARGET_PATHS; do
         ABS_PATH=$(realpath $FILE)
 
         # Filter out undesired file types
-        if ! grep $FILTER_GREP <<< $(basename -- $ABS_PATH) &>/dev/null; then
+        if ! grep $FILTER_GREP <<<$(basename -- $ABS_PATH) &>/dev/null; then
             continue
         fi
 
