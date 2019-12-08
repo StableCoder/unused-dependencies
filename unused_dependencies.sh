@@ -21,13 +21,6 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NO_COLOUR='\033[0m'
 
-# Determine the absolute path of a file
-absolute_path() {
-    pushd $(dirname -- $1) &>/dev/null
-    echo $(pwd)/$(basename -- $1)
-    popd &>/dev/null
-}
-
 usage() {
     echo "Usage: unused_dependencies.sh [OPTION]"
     echo
@@ -98,7 +91,7 @@ fi
 
 # Convert target paths for grep usage
 for ITEM in $TARGET_PATHS; do
-    TARGET_PATHS_GREP="$TARGET_PATHS_GREP -e $ITEM"
+    TARGET_PATHS_GREP="$TARGET_PATHS_GREP -e $(realpath $ITEM)"
 done
 
 # Determine the set of 'used' headers, using each file found which ends with '.d'
@@ -108,7 +101,7 @@ for DEP_DIR in $DEPENDENCY_PATHS; do
 
     for FILE in $(find -- "$DEP_DIR" | grep -e "\.d$"); do
         if [[ $VERBOSE -eq 1 ]]; then
-            printf "${GREEN}Processing$NO_COLOUR: $(absolute_path $FILE)\n"
+            printf "${GREEN}Processing$NO_COLOUR: $(realpath $FILE)\n"
         fi
 
         # For each dependency, other than the first line itself, get that file's absolute path
@@ -118,7 +111,7 @@ for DEP_DIR in $DEPENDENCY_PATHS; do
                 continue
             fi
 
-            ABS_PATH=$(absolute_path $ITEM)
+            ABS_PATH=$(realpath $ITEM)
 
             # Filter out paths not wanted
             if ! grep $TARGET_PATHS_GREP <<<$ABS_PATH &>/dev/null; then
@@ -148,7 +141,7 @@ if [[ $VERBOSE -eq 1 ]]; then
 fi
 for TARGET_DIR in $TARGET_PATHS; do
     for FILE in $(find $TARGET_DIR); do
-        ABS_PATH=$(absolute_path $FILE)
+        ABS_PATH=$(realpath $FILE)
 
         # Filter out undesired file types
         if ! grep $FILTER_GREP <<< $(basename -- $ABS_PATH) &>/dev/null; then
