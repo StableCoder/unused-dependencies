@@ -28,6 +28,9 @@ usage() {
     echo "directories and list desired file types that aren't used."
     echo "Such files can be generated via GCC/clang with the '-MD' option."
     echo
+    echo " -e, --export    Exports the results to two files:"
+    echo "                   1) Used dependencies to used.txt"
+    echo "                   2) Unused dependencies to unused.txt"
     echo " -f, --filter    Adds the given regex to filter desired files"
     echo " -s, --source    DirectorSource directory that is searched for .d files"
     echo " -t, --target    A target directory of where desired headers being checked for"
@@ -44,14 +47,19 @@ usage() {
 }
 
 # Variables
-VERBOSE=0
+FILE_EXPORT=0
 FILTER_GREP=
+VERBOSE=0
 
 # Command Line Options
 while [[ $# -gt 0 ]]; do
     KEY="$1"
 
     case $KEY in
+    -e | --export)
+        FILE_EXPORT=1
+        shift
+        ;;
     -f | --filter)
         FILTER_GREP="$FILTER_GREP -e $2"
         shift
@@ -140,10 +148,21 @@ if [[ $VERBOSE -eq 1 ]]; then
     done
 fi
 
+# If export, do so now
+if [[ $FILE_EXPORT -eq 1 ]]; then
+    printf "" >used.txt
+    for FILE in $USED_HEADERS; do
+        printf "$FILE\n" >>used.txt
+    done
+fi
+
 # Now, using the set of 'used' headers, go through all the headers in the same root search path and
 # determine the set that exist but aren't used.
 if [[ $VERBOSE -eq 1 ]]; then
     printf "${YELLOW}Unused files$NO_COLOUR:\n"
+fi
+if [[ $FILE_EXPORT -eq 1 ]]; then
+    printf "" >unused.txt
 fi
 for TARGET_DIR in $TARGET_PATHS; do
     for FILE in $(find $TARGET_DIR); do
@@ -156,6 +175,9 @@ for TARGET_DIR in $TARGET_PATHS; do
 
         if ! grep -w -- $ABS_PATH <<<$USED_HEADERS &>/dev/null; then
             printf "$FILE\n"
+            if [[ $FILE_EXPORT -eq 1 ]]; then
+                printf "$FILE\n" >>unused.txt
+            fi
         fi
     done
 done
