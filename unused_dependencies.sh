@@ -58,12 +58,12 @@ while [[ $# -gt 0 ]]; do
         shift
         ;;
     -s | --source)
-        DEPENDENCY_PATHS="$2"
+        DEPENDENCY_PATHS="$(realpath $2)"
         shift
         shift
         ;;
     -t | --target)
-        TARGET_PATHS="$TARGET_PATHS $2"
+        TARGET_PATHS="$TARGET_PATHS $(realpath $2)"
         shift
         shift
         ;;
@@ -91,7 +91,7 @@ fi
 
 # Convert target paths for grep usage
 for ITEM in $TARGET_PATHS; do
-    TARGET_PATHS_GREP="$TARGET_PATHS_GREP -e $(realpath $ITEM)"
+    TARGET_PATHS_GREP="$TARGET_PATHS_GREP -e $ITEM"
 done
 
 # Determine the set of 'used' headers, using each file found which ends with '.d'
