@@ -18,6 +18,7 @@
 # Colours
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 CYAN='\033[0;36m'
 NO_COLOUR='\033[0m'
 
@@ -44,6 +45,27 @@ usage() {
     echo
     echo " unused_dependencies.sh -f \"\.h$\" -f \"\.hpp$\" -s /home/build -t /usr/include"
     exit 0
+}
+
+find_file() {
+    CUR_DIR=$1
+    FILE_PATH=$2
+
+    while true; do
+        # Check for the file
+        if [ -f $CUR_DIR/$FILE_PATH ]; then
+            printf "$CUR_DIR/$FILE_PATH"
+            exit 0
+        fi
+
+        # Check if root, end of search
+        if [ "$CUR_DIR" == "/" ]; then
+            printf "${RED}ERROR${NO_COLOUR}: Could not find path of dependency file $FILE_PATH from $1\n"
+            exit 1
+        fi
+
+        CUR_DIR=$(realpath $CUR_DIR/..)
+    done
 }
 
 # Variables
@@ -119,7 +141,17 @@ for DEP_DIR in $DEPENDENCY_PATHS; do
                 continue
             fi
 
-            ABS_PATH=$(realpath $ITEM)
+            if [ -f $ITEM ]; then
+                # Found it, use it
+                ABS_PATH=$(realpath $ITEM)
+            else
+                # Can't find the file, recursively search down to root to try to find it
+                ABS_PATH=$(realpath $(find_file $(dirname $FILE) $ITEM))
+                if [[ $? -ne 0 ]]; then
+                    printf "$ABS_PATH\n"
+                    exit 1
+                fi
+            fi
 
             # Filter out paths not wanted
             if ! grep $TARGET_PATHS_GREP <<<$ABS_PATH &>/dev/null; then
