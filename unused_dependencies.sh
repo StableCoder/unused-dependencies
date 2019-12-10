@@ -64,6 +64,29 @@ find_file() {
 
         # Check if root, end of search
         if [ "$CUR_DIR" == "/" ]; then
+            break
+        fi
+
+        CUR_DIR=$(realpath $CUR_DIR/..)
+    done
+
+    # Reset the search directory
+    CUR_DIR=$1
+    # Remove the items on the start for folder traversal
+    FILE_PATH=${FILE_PATH##*../}
+    FILE_PATH=${FILE_PATH##*./}
+
+    # Not found yet, try second way
+    while true; do
+        # Check for the file
+        POSSIBLE_PATH=$(find $CUR_DIR | grep -e "$FILE_PATH$")
+        if ! [ -z "$POSSIBLE_PATH" ]; then
+            printf "$POSSIBLE_PATH"
+            exit 0
+        fi
+
+        # Check if root, end of search
+        if [ "$CUR_DIR" == "/" ]; then
             printf "${RED}ERROR${NO_COLOUR}: Could not find path of dependency file $FILE_PATH from $1\n"
             exit 1
         fi
