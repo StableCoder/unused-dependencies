@@ -30,9 +30,6 @@ usage() {
     echo "directories and list desired file types that aren't used."
     echo "Such files can be generated via GCC/clang with the '-MD' option."
     echo
-    echo " -e, --export    Exports the results to two files:"
-    echo "                   1) Used dependencies to used.txt"
-    echo "                   2) Unused dependencies to unused.txt"
     echo " -f, --filter    Adds the given regex to filter desired files"
     echo " -s, --source    DirectorSource directory that is searched for .d files"
     echo " -t, --target    A target directory of where desired headers being checked for"
@@ -96,7 +93,6 @@ find_file() {
 }
 
 # Variables
-FILE_EXPORT=0
 FILTER_GREP=
 VERBOSE=0
 
@@ -105,10 +101,6 @@ while [[ $# -gt 0 ]]; do
     KEY="$1"
 
     case $KEY in
-    -e | --export)
-        FILE_EXPORT=1
-        shift
-        ;;
     -f | --filter)
         FILTER_GREP="$FILTER_GREP -e $2"
         shift
@@ -152,7 +144,7 @@ for ITEM in $TARGET_PATHS; do
 done
 
 # Determine the set of 'used' headers, using each file found which ends with '.d'
-USED_HEADERS=
+printf "" >raw.txt
 for DEP_DIR in $DEPENDENCY_PATHS; do
     # For each directory we're checking for dependency files
 
@@ -190,28 +182,21 @@ for DEP_DIR in $DEPENDENCY_PATHS; do
                 continue
             fi
 
-            # If it's not in the USED_HEADERS list, add it
-            USED_HEADERS="$ABS_PATH $USED_HEADERS"
+            # Add it to the file
+            printf "$ABS_PATH\n" >>raw.txt
         done
     done
 done
 
-# Remove duplicates
-USED_HEADERS=$(awk 'BEGIN{RS=ORS=" "}!a[$0]++' <<<$USED_HEADERS)
+# Remove
+awk '!a[$0]++' raw.txt >filtered.txt
+#USED_HEADERS=$(awk 'BEGIN{RS=ORS=" "}!a[$0]++' <<<$USED_HEADERS)
 
 # If Verbose, print out the used dependencies
 if [[ $VERBOSE -eq 1 ]]; then
     printf "${YELLOW}Found dependencies$NO_COLOUR:\n"
     for ITEM in $USED_HEADERS; do
         echo $ITEM
-    done
-fi
-
-# If export, do so now
-if [[ $FILE_EXPORT -eq 1 ]]; then
-    printf "" >used.txt
-    for FILE in $USED_HEADERS; do
-        printf "$FILE\n" >>used.txt
     done
 fi
 
