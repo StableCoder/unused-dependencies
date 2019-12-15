@@ -31,6 +31,7 @@ usage() {
     echo "Such files can be generated via GCC/clang with the '-MD' option."
     echo
     echo " -f, --filter    Adds the given regex to filter desired files"
+    echo " -j, --jobs      Dictate the number of threads to dedicate to this"
     echo " -s, --source    DirectorSource directory that is searched for .d files"
     echo " -t, --target    A target directory of where desired headers being checked for"
     echo " -v, --verbose   Outputs more detailed information"
@@ -95,6 +96,7 @@ find_file() {
 # Variables
 FILTER_GREP=
 VERBOSE=0
+NUM_JOBS=1
 
 # Command Line Options
 while [[ $# -gt 0 ]]; do
@@ -103,6 +105,11 @@ while [[ $# -gt 0 ]]; do
     case $KEY in
     -f | --filter)
         FILTER_GREP="$FILTER_GREP -e $2"
+        shift
+        shift
+        ;;
+    -j | --jobs)
+        NUM_JOBS=$2
         shift
         shift
         ;;
@@ -127,7 +134,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Check inputs
-if [ "$DEPENDENCY_PATHS" = "" ]; then
+if ! echo "$NUM_JOBS" | egrep -q '^\-?[0-9]*\.?[0-9]+$'; then
+    printf " $RED>>$NO_COLOUR Error: Jobs value of '$NUM_JOBS' is not a number\n"
+    exit 1
+elif [ "$DEPENDENCY_PATHS" = "" ]; then
     printf " ${RED}>>$NO_COLOUR Error: No source directories for .d files defined!\n"
     exit 0
 elif [ "$TARGET_PATHS" = "" ]; then
