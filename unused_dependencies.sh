@@ -139,13 +139,13 @@ if ! echo "$NUM_JOBS" | egrep -q '^\-?[0-9]*\.?[0-9]+$'; then
     exit 1
 elif [ "$DEPENDENCY_PATHS" = "" ]; then
     printf " ${RED}>>$NO_COLOUR Error: No source directories for .d files defined!\n"
-    exit 0
+    exit 1
 elif [ "$TARGET_PATHS" = "" ]; then
     printf " ${RED}>>$NO_COLOUR Error: No target filter paths defined!\n"
-    exit 0
+    exit 1
 elif [ "$FILTER_GREP" = "" ]; then
     printf " $RED>>$NO_COLOUR Error: No grep filters defined!\n"
-    exit 0
+    exit 1
 fi
 
 # Convert target paths for grep usage
