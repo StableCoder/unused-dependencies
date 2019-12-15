@@ -93,6 +93,72 @@ find_file() {
     done
 }
 
+process_dependency_files() {
+    while [[ $# -gt 0 ]]; do
+        # For each parameter
+        FILE=$1
+        shift
+
+        if [[ $VERBOSE -eq 1 ]]; then
+            printf "${GREEN}Processing$NO_COLOUR: $(realpath $FILE)\n"
+        fi
+
+        # For each dependency, other than the first line itself, get that file's absolute path
+        for ITEM in $(tail -n +2 $FILE); do
+            # Skip plain '\' items
+            if [ "$ITEM" == '\' ]; then
+                continue
+            fi
+
+            if [ -f $ITEM ]; then
+                # Found it, use it
+                ABS_PATH=$(realpath $ITEM)
+            else
+                # Can't find the file, recursively search down to root to try to find it
+                ABS_PATH=$(realpath $(find_file $(dirname $FILE) $ITEM))
+                if [[ $? -ne 0 ]]; then
+                    printf "$ABS_PATH\n"
+                    exit 1
+                fi
+            fi
+
+            # Filter out paths not wanted
+            if ! grep $TARGET_PATHS_GREP <<<$ABS_PATH &>/dev/null; then
+                continue
+            fi
+
+            # Filter out undesired file types
+            if ! grep $FILTER_GREP <<<$(basename -- $ABS_PATH) &>/dev/null; then
+                continue
+            fi
+
+            # Add it to the file
+            printf "$ABS_PATH\n" >>raw.txt
+        done
+    done
+}
+
+check_files() {
+    while [[ $# -gt 0 ]]; do
+        # For each given file to check
+        FILE=$1
+        shift
+
+        ABS_PATH=$(realpath $FILE)
+
+        # Filter out undesired file types
+        if ! grep $FILTER_GREP <<<$(basename -- $ABS_PATH) &>/dev/null; then
+            continue
+        fi
+
+        # If we can't find this file in the variable, then it isn't used
+        if ! grep -w -- $ABS_PATH filtered.txt &>/dev/null; then
+            printf "$FILE\n"
+            printf "$FILE\n" >>unused.txt
+        fi
+    done
+}
+
 # Variables
 FILTER_GREP=
 VERBOSE=0
@@ -148,55 +214,35 @@ elif [ "$FILTER_GREP" = "" ]; then
     exit 1
 fi
 
+# Number of jobs is minimum of 1
+if [[ $NUM_JOBS -lt 1 ]]; then
+    $NUM_JOBS=1
+fi
+
 # Convert target paths for grep usage
 for ITEM in $TARGET_PATHS; do
     TARGET_PATHS_GREP="$TARGET_PATHS_GREP -e $ITEM"
 done
 
 # Determine the set of 'used' headers, using each file found which ends with '.d'
-printf "" >raw.txt
 for DEP_DIR in $DEPENDENCY_PATHS; do
     # For each directory we're checking for dependency files
-
     for FILE in $(find -- "$DEP_DIR" | grep -e "\.d$"); do
-        if [[ $VERBOSE -eq 1 ]]; then
-            printf "${GREEN}Processing$NO_COLOUR: $(realpath $FILE)\n"
-        fi
-
-        # For each dependency, other than the first line itself, get that file's absolute path
-        for ITEM in $(tail -n +2 $FILE); do
-            # Skip plain '\' items
-            if [ "$ITEM" == '\' ]; then
-                continue
-            fi
-
-            if [ -f $ITEM ]; then
-                # Found it, use it
-                ABS_PATH=$(realpath $ITEM)
-            else
-                # Can't find the file, recursively search down to root to try to find it
-                ABS_PATH=$(realpath $(find_file $(dirname $FILE) $ITEM))
-                if [[ $? -ne 0 ]]; then
-                    printf "$ABS_PATH\n"
-                    exit 1
-                fi
-            fi
-
-            # Filter out paths not wanted
-            if ! grep $TARGET_PATHS_GREP <<<$ABS_PATH &>/dev/null; then
-                continue
-            fi
-
-            # Filter out undesired file types
-            if ! grep $FILTER_GREP <<<$(basename -- $ABS_PATH) &>/dev/null; then
-                continue
-            fi
-
-            # Add it to the file
-            printf "$ABS_PATH\n" >>raw.txt
-        done
+        # Add the file to be processed to the list
+        DEP_FILE_LIST+=($FILE)
     done
 done
+
+# Determine the number of dependencies to process per job
+DEPS_PER_JOB=$((${#DEP_FILE_LIST[@]} / $NUM_JOBS))
+# Process the dependency files, evenly splitting the files across the number of jobs provided
+printf "" >raw.txt
+for ((i = 0; i < $NUM_JOBS; i++)); do
+    # Change the starting items so that different jobs work on different files
+    START=$(($DEPS_PER_JOB * $i))
+    process_dependency_files ${DEP_FILE_LIST[@]:$START:$DEPS_PER_JOB} &
+done
+wait
 
 # Remove
 awk '!a[$0]++' raw.txt >filtered.txt
@@ -205,34 +251,29 @@ awk '!a[$0]++' raw.txt >filtered.txt
 # If Verbose, print out the used dependencies
 if [[ $VERBOSE -eq 1 ]]; then
     printf "${YELLOW}Found dependencies$NO_COLOUR:\n"
-    for ITEM in $USED_HEADERS; do
-        echo $ITEM
-    done
+    while read LINE; do
+        echo $LINE
+    done <filtered.txt
 fi
 
 # Now, using the set of 'used' headers, go through all the headers in the same root search path and
 # determine the set that exist but aren't used.
+for TARGET_DIR in $TARGET_PATHS; do
+    for FILE in $(find $TARGET_DIR); do
+        CHECK_FILE_LIST+=($FILE)
+    done
+done
+
+# Split the files to check into different job sets
+FILES_PER_JOB=$((${#CHECK_FILE_LIST[@]} / $NUM_JOBS))
+
 if [[ $VERBOSE -eq 1 ]]; then
     printf "${YELLOW}Unused files$NO_COLOUR:\n"
 fi
-if [[ $FILE_EXPORT -eq 1 ]]; then
-    printf "" >unused.txt
-fi
-for TARGET_DIR in $TARGET_PATHS; do
-    for FILE in $(find $TARGET_DIR); do
-        ABS_PATH=$(realpath $FILE)
-
-        # Filter out undesired file types
-        if ! grep $FILTER_GREP <<<$(basename -- $ABS_PATH) &>/dev/null; then
-            continue
-        fi
-
-        # If we can't find this file in the variable, then it isn't used
-        if ! grep -w -- $ABS_PATH <<<$USED_HEADERS &>/dev/null; then
-            printf "$FILE\n"
-            if [[ $FILE_EXPORT -eq 1 ]]; then
-                printf "$FILE\n" >>unused.txt
-            fi
-        fi
-    done
+printf "" >unused.txt
+for ((i = 0; i < $NUM_JOBS; i++)); do
+    # Change the starting items so that different jobs work on different files
+    START=$(($FILES_PER_JOB * $i))
+    check_files ${CHECK_FILE_LIST[@]:$START:$FILES_PER_JOB} &
 done
+wait
