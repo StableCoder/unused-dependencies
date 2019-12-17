@@ -31,7 +31,7 @@ usage() {
     echo "Such files can be generated via GCC/clang with the '-MD' option."
     echo
     echo " -f, --filter    Adds the given regex to filter desired files"
-    echo " -j, --jobs      Dictate the number of threads to dedicate to this"
+    echo " -j, --jobs      Declare the number of parallel runs"
     echo " -s, --source    DirectorSource directory that is searched for .d files"
     echo " -t, --target    A target directory of where desired headers being checked for"
     echo " -v, --verbose   Outputs more detailed information"

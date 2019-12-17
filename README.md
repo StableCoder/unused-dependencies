@@ -9,10 +9,8 @@ Using compiler-generated dependency files (.d), search through target
 directories and list desired file types that aren't used.
 Such files can be generated via GCC/clang with the '-MD' option.
 
- -e, --export    Exports the results to two files:
-                   1) Used dependencies to used.txt
-                   2) Unused dependencies to unused.txt
  -f, --filter    Adds the given regex to filter desired files
+ -j, --jobs      Declare the number of parallel runs
  -s, --source    DirectorSource directory that is searched for .d files
  -t, --target    A target directory of where desired headers being checked for
  -v, --verbose   Outputs more detailed information
